@@ -1,16 +1,21 @@
 package org.example.asteroides;
 
+import java.util.List;
 import java.util.Vector;
 
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
-public class VistaJuego extends View {
+public class VistaJuego extends View implements SensorEventListener {
 
 	private Vector<Grafico> asteroides;
 	private Drawable fondo1;
@@ -23,6 +28,10 @@ public class VistaJuego extends View {
 	private Grafico nave;
 	private int giroNave;
 	private float aceleracionNave;
+
+	// ////// MISIL ///////////////////////
+	Misil misil;
+
 	// Incremento de giro y aceleración
 	private static final int PASO_GIRO_NAVE = 5;
 	private static final float PASO_ACELERACION_NAVE = 0.5f;
@@ -37,6 +46,10 @@ public class VistaJuego extends View {
 	private static int PERIODO_PROCESO = 50;
 	// cuándo se realizo el último proceso: 'delta Time'
 	private long ultimoProceso = 0;
+
+	// VALORES SENSORES ///////////
+	private boolean isValorInicial;
+	private float valorInicial;
 
 	public VistaJuego(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -56,6 +69,17 @@ public class VistaJuego extends View {
 			asteroides.add(asteroide);
 		}
 		nave = new Grafico(this, res.getDrawable(R.drawable.nave));
+		misil = new Misil(this, res.getDrawable(R.drawable.misil1));
+
+		// Registramos el sensor e indicamos qué objeto recogerá la llamada
+		// callback
+		SensorManager sm = (SensorManager) context
+				.getSystemService(Context.SENSOR_SERVICE);
+		List<Sensor> listaSensores = sm.getSensorList(Sensor.TYPE_ORIENTATION);
+		if (!listaSensores.isEmpty()) {
+			Sensor sensorOrientacion = listaSensores.get(0);
+			sm.registerListener(this, sensorOrientacion, sm.SENSOR_DELAY_GAME);
+		}
 
 	}
 
@@ -94,6 +118,9 @@ public class VistaJuego extends View {
 		}
 
 		nave.dibujaGrafico(canvas);
+		if (misil.isMisilActivo()) {
+			misil.dibujaGrafico(canvas);
+		}
 
 	}
 
@@ -126,7 +153,7 @@ public class VistaJuego extends View {
 			giroNave = 0;
 			aceleracionNave = 0;
 			if (disparo) {
-				// ActivaMisil();
+				activaMisil();
 			}
 			break;
 		default:
@@ -167,6 +194,55 @@ public class VistaJuego extends View {
 		for (Grafico asteroide : asteroides) {
 			asteroide.incrementaPos(retardo);
 		}
+
+		// Actualizamos posición del misil //////
+		if (misil.isMisilActivo()) {
+			misil.incrementaPos(retardo);
+
+			misil.setTiempoMisil(misil.getTiempoMisil() - (int) retardo);
+			if (misil.getTiempoMisil() < 0) {
+				misil.setMisilActivo(false);
+			} else {
+				for (int i = 0; i < asteroides.size(); i++) {
+					if (misil.verificarColision(asteroides.elementAt(i))) {
+						destruyeAsteroide(i);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	private void destruyeAsteroide(int i) {
+		asteroides.remove(i);
+		misil.setMisilActivo(false);
+	}
+
+	private void activaMisil() {
+		// centramos el misil atendiendo a la posición, altura y anchura de la
+		// nave
+		misil.setPosX(nave.getPosX() + nave.getAncho() / 2 - misil.getAncho()
+				/ 2);
+		misil.setPosY(nave.getPosY() + nave.getAlto() / 2 - misil.getAlto() / 2);
+
+		misil.setAngulo(nave.getAngulo());
+		misil.setIncX(Math.cos(Math.toRadians(misil.getAngulo()))
+				* Misil.PASO_VELOCIDAD_MISIL);
+		misil.setIncY(Math.sin(Math.toRadians(misil.getAngulo()))
+				* Misil.PASO_VELOCIDAD_MISIL);
+		/*
+		 * Damos un tiempo de vida al misil para que no esté recorriendo
+		 * permanentemente la pantalla hasta chocar con un asteroide. Nos quedamos
+		 * con el mínimo entre el ancho dividido por la velocidad y el alto
+		 * dividido por la velocidad y le restamos una constante
+		 */
+
+		misil.setTiempoMisil((int) Math.min(
+				this.getWidth() / Math.abs(misil.getIncX()), this.getHeight()
+						/ Math.abs(misil.getIncY()))
+				- Misil.TIEMPO_VIDA);
+		misil.setMisilActivo(true);
+
 	}
 
 	class ThreadJuego extends Thread {
@@ -177,6 +253,24 @@ public class VistaJuego extends View {
 				actualizarFisica();
 		}
 
+	}
+
+	// Métodos para habilitar los sensores de orientación
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+		this.isValorInicial = false;
+
+	}
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		float valor = event.values[1];
+		if (!isValorInicial) {
+			valorInicial = valor;
+			isValorInicial = true;
+		}
+		giroNave = (int) (valor - valorInicial) / 3;
 	}
 
 }
