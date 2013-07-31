@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Vector;
 
 import android.content.Context;
+import android.content.SyncResult;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -33,7 +34,7 @@ public class VistaJuego extends View implements SensorEventListener {
 	private float aceleracionNave;
 
 	// ////// MISIL ///////////////////////
-	//Misil misil;
+	// Misil misil;
 	Iterator vecInterator;
 
 	// Incremento de giro y aceleración
@@ -52,8 +53,10 @@ public class VistaJuego extends View implements SensorEventListener {
 	private long ultimoProceso = 0;
 
 	// VALORES SENSORES ///////////
+	SensorManager sm;
 	private boolean isValorInicial;
 	private float valorInicial;
+	private boolean sensorActivo = false;
 
 	public VistaJuego(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -83,13 +86,8 @@ public class VistaJuego extends View implements SensorEventListener {
 
 		// Registramos el sensor e indicamos qué objeto recogerá la llamada
 		// callback
-		SensorManager sm = (SensorManager) context
-				.getSystemService(Context.SENSOR_SERVICE);
-		List<Sensor> listaSensores = sm.getSensorList(Sensor.TYPE_ORIENTATION);
-		if (!listaSensores.isEmpty()) {
-			Sensor sensorOrientacion = listaSensores.get(0);
-			sm.registerListener(this, sensorOrientacion, sm.SENSOR_DELAY_GAME);
-		}
+		sm = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+		regSensorOrientacion();
 
 	}
 
@@ -165,16 +163,16 @@ public class VistaJuego extends View implements SensorEventListener {
 			giroNave = 0;
 			aceleracionNave = 0;
 			if (disparo) {
-				//Corregir esto, yo no puedo activar todos los misiles cuando pulso la pantalla
-				while(vecInterator.hasNext()){
+				// Disparo de varios misiles en pantalla
+				while (vecInterator.hasNext()) {
 					Misil misil = (Misil) vecInterator.next();
-					if(!misil.isMisilActivo()){
+					if (!misil.isMisilActivo()) {
 						activaMisil(misil);
 						break;
 					}
-					
+
 				}
-				
+
 			}
 			break;
 		default:
@@ -238,7 +236,7 @@ public class VistaJuego extends View implements SensorEventListener {
 
 	private void destruyeAsteroide(int i) {
 		asteroides.remove(i);
-		//misil.setMisilActivo(false);
+		// misil.setMisilActivo(false);
 
 	}
 
@@ -273,10 +271,40 @@ public class VistaJuego extends View implements SensorEventListener {
 
 	class ThreadJuego extends Thread {
 
+		private boolean pausa, corriendo;
+
+		public synchronized void pausar() {
+			pausa = true;
+		}
+
+		public synchronized void reanudar() {
+			pausa = false;
+			notify();
+		}
+
+		public void detener() {
+			corriendo = false;
+			if (pausa)
+				reanudar();
+		}
+
 		@Override
 		public void run() {
-			while (true)
+			corriendo = true;
+			while (corriendo) {
 				actualizarFisica();
+				synchronized (this) {
+					while (pausa) {
+						try {
+							// Detenemos la actividad cuando ésta entre en pausa
+							wait();
+						} catch (Exception e) {
+
+						}
+					}
+				}
+			}
+
 		}
 
 	}
@@ -289,6 +317,28 @@ public class VistaJuego extends View implements SensorEventListener {
 
 	}
 
+	// Registro del sensor
+	public boolean regSensorOrientacion() {
+		List<Sensor> listaSensores = sm.getSensorList(Sensor.TYPE_ORIENTATION);
+		if (!listaSensores.isEmpty()) {
+			Sensor sensorOrientacion = listaSensores.get(0);
+			sm.registerListener(this, sensorOrientacion, sm.SENSOR_DELAY_GAME);
+			return sensorActivo = true;
+		} else
+			return sensorActivo;
+
+	}
+
+	// Desactivar sensor
+	public boolean stopSensorOrientacion() {
+		if (sensorActivo) {
+			sm.unregisterListener(this);
+			sensorActivo = false;
+		}
+		return sensorActivo;
+	}
+
+	// Método implementado de la interfaz SensorEventListener
 	@Override
 	public void onSensorChanged(SensorEvent event) {
 		float valor = event.values[1];
@@ -297,6 +347,15 @@ public class VistaJuego extends View implements SensorEventListener {
 			isValorInicial = true;
 		}
 		giroNave = (int) (valor - valorInicial) / 3;
+	}
+
+	// Método getter de ThreadJuego para controlar el hilo fuera de VistaJuego
+	public ThreadJuego getHilo() {
+		return hilo;
+	}
+
+	public SensorManager getSm() {
+		return sm;
 	}
 
 }

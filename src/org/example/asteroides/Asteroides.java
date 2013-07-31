@@ -11,6 +11,7 @@ import android.gesture.GestureLibrary;
 import android.gesture.GestureOverlayView;
 import android.gesture.GestureOverlayView.OnGesturePerformedListener;
 import android.gesture.Prediction;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -33,6 +34,7 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 	private TextView titulo;
 	private GestureLibrary libreria;
 	public static AlmacenPuntuacionesArray almacen = new AlmacenPuntuacionesArray();
+	private MediaPlayer mp;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -45,12 +47,15 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 		btnJuego = (Button) findViewById(R.id.button1);
 		titulo = (TextView) findViewById(R.id.textView1);
 
-		// Animacion del título
-		
+		// Animación del título
+
 		Animation animacion = AnimationUtils.loadAnimation(this,
 				R.anim.animacion);
 		titulo.startAnimation(animacion);
-		
+
+		// Reproductor de música ////////
+		mp = MediaPlayer.create(this, R.raw.menu_theme);
+		mp.start();
 
 		// Evento botón "Acerca de" //////////////////////////
 		btnAcercaDe.setOnClickListener(new OnClickListener() {
@@ -79,6 +84,7 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 			}
 		});
 
+		// Evento boton juego
 		btnJuego.setOnClickListener(new OnClickListener() {
 
 			@Override
@@ -92,8 +98,9 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 		if (!libreria.load()) {
 			finish();
 		}
-		//crea la "capa" sobre la que se escriben los gestos descritos en "gestures" y
-		//añade a esta activity
+		// crea la "capa" sobre la que se escriben los gestos descritos en
+		// "gestures" y
+		// añade a esta activity
 		GestureOverlayView gv = (GestureOverlayView) findViewById(R.id.gestures);
 		gv.addOnGesturePerformedListener(this);
 	}
@@ -158,7 +165,8 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 
 	}
 
-	// Este método procesa la información recibida por los dibujos del usuario en pantalla
+	// Este método procesa la información recibida por los dibujos del usuario
+	// en pantalla
 	@Override
 	public void onGesturePerformed(GestureOverlayView overlay, Gesture gesture) {
 		ArrayList<Prediction> prediction = libreria.recognize(gesture);
@@ -177,6 +185,34 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 
 		}
 
+	}
+
+	@Override
+	protected void onPause() {
+		// TODO Auto-generated method stub
+		super.onPause();
+		if (mp != null) {
+			mp.pause();
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		// TODO Auto-generated method stub
+		super.onResume();
+		if (mp != null) {
+			mp.start();
+		}
+	}
+
+	@Override
+	protected void onDestroy() {
+		// TODO Auto-generated method stub
+		super.onDestroy();
+		if (mp != null) {
+			mp.release();
+			mp = null;
+		}
 	}
 
 }
