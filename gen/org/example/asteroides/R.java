@@ -67,8 +67,10 @@ public final class R {
         public static final int menu=0x7f0b0000;
     }
     public static final class raw {
-        public static final int gestures=0x7f060000;
-        public static final int menu_theme=0x7f060001;
+        public static final int disparo=0x7f060000;
+        public static final int explosion=0x7f060001;
+        public static final int gestures=0x7f060002;
+        public static final int menu_theme=0x7f060003;
     }
     public static final class string {
         public static final int action_settings=0x7f0a0001;

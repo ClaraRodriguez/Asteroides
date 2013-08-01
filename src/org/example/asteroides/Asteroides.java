@@ -84,7 +84,7 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 			}
 		});
 
-		// Evento boton juego
+		// Evento botón juego
 		btnJuego.setOnClickListener(new OnClickListener() {
 
 			@Override
@@ -212,6 +212,25 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 		if (mp != null) {
 			mp.release();
 			mp = null;
+		}
+	}
+
+	// guardar y recuperar el estado del reproductor cuando se destruye la actividad
+	@Override
+	protected void onSaveInstanceState(Bundle estadoGuardado) {
+		super.onSaveInstanceState(estadoGuardado);
+		if(mp != null){
+			int pos = mp.getCurrentPosition();
+			estadoGuardado.putInt("posicion", pos);
+		}
+	}
+
+	@Override
+	protected void onRestoreInstanceState(Bundle estadoGuardado) {
+		super.onRestoreInstanceState(estadoGuardado);
+		if(estadoGuardado != null && mp != null){
+			int pos = estadoGuardado.getInt("posicion");
+			mp.seekTo(pos);
 		}
 	}
 

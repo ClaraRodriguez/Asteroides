@@ -13,6 +13,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -58,6 +60,10 @@ public class VistaJuego extends View implements SensorEventListener {
 	private float valorInicial;
 	private boolean sensorActivo = false;
 
+	// MULTIMEDIA /////////////////
+	SoundPool soundPool;
+	int idDisparo, idExplosion;
+
 	public VistaJuego(Context context, AttributeSet attrs) {
 		super(context, attrs);
 
@@ -88,6 +94,11 @@ public class VistaJuego extends View implements SensorEventListener {
 		// callback
 		sm = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
 		regSensorOrientacion();
+
+		// Iniciamos el SoundPool y los disparos
+		soundPool = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
+		idDisparo = soundPool.load(context, R.raw.disparo, 0);
+		idExplosion = soundPool.load(context, R.raw.explosion, 0);
 
 	}
 
@@ -225,7 +236,7 @@ public class VistaJuego extends View implements SensorEventListener {
 				} else {
 					for (int i = 0; i < asteroides.size(); i++) {
 						if (misil.verificarColision(asteroides.elementAt(i))) {
-							destruyeAsteroide(i);
+							destruyeAsteroide(i, misil);
 							break;
 						}
 					}
@@ -234,9 +245,10 @@ public class VistaJuego extends View implements SensorEventListener {
 		}
 	}
 
-	private void destruyeAsteroide(int i) {
+	private void destruyeAsteroide(int i, Misil misil) {
 		asteroides.remove(i);
-		// misil.setMisilActivo(false);
+		misil.setMisilActivo(false);
+		soundPool.play(idExplosion, 1, 1, 0, 0, 1);
 
 	}
 
@@ -266,6 +278,7 @@ public class VistaJuego extends View implements SensorEventListener {
 				- Misil.TIEMPO_VIDA);
 
 		misil.setMisilActivo(true);
+		soundPool.play(idDisparo, 1, 1, 1, 0, 1);
 
 	}
 
