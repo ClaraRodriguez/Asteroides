@@ -9,7 +9,7 @@ public class Grafico {
 	private Drawable drawable; // Imagen a usar
 	private double posX, posY; // Posición
 	private double incX, incY; // Velocidad
-	private double angulo, rotación; // ángulo y velocidad de rotación
+	private double angulo, rotacion; // ángulo y velocidad de rotación
 	private int ancho, alto; // Dimensiones de la imagen
 	private int radioColision; // Para determinar la colisión
 	private View view; // donde dibujamos el gráfico
@@ -150,12 +150,12 @@ public class Grafico {
 		this.angulo = angulo;
 	}
 
-	public double getRotación() {
-		return rotación;
+	public double getRotacion() {
+		return rotacion;
 	}
 
-	public void setRotación(double rotación) {
-		this.rotación = rotación;
+	public void setRotacion(double rotacion) {
+		this.rotacion = rotacion;
 	}
 
 }

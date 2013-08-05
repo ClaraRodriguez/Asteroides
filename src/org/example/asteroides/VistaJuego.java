@@ -4,8 +4,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 
+import android.app.Activity;
 import android.content.Context;
-import android.content.SyncResult;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -15,20 +17,27 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.SoundPool;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class VistaJuego extends View implements SensorEventListener {
 
+	// CONFIG ///////////////////////////
+	private SharedPreferences pref;
 	private Vector<Grafico> asteroides;
 	private Vector<Misil> misiles;
 	private Drawable fondo1;
 	private Drawable drawableNave;
-	private Drawable asteroide1;
+	private Drawable drawableAsteroide[];
 	private int numAsteroides = 5; // Numero inicial de asteroides
 	private int numMisiles = 10; // numero de misiles
-	private int numFragmentos = 3;
+	private int numFragmentos;
+	private boolean musica;
+	private int puntuacion = 0;
+	private Activity padre;
 
 	// /////// NAVE ////////////////////////
 	private Grafico nave;
@@ -66,20 +75,32 @@ public class VistaJuego extends View implements SensorEventListener {
 
 	public VistaJuego(Context context, AttributeSet attrs) {
 		super(context, attrs);
+		// estableciendo preferencias
+		pref = PreferenceManager.getDefaultSharedPreferences(context);
+		numFragmentos = Integer.valueOf(pref.getString("fragmentos", "3"));
+		musica = pref.getBoolean("musica", true);
+
+
 
 		Resources res = context.getResources();
 		asteroides = new Vector<Grafico>();
 		misiles = new Vector<Misil>();
 		fondo1 = res.getDrawable(R.drawable.grid);
-		asteroide1 = res.getDrawable(R.drawable.asteroide1);
+		drawableAsteroide = new Drawable[3];
+		// iniciamos los bitmaps de los tres tipo de asteroides
+		drawableAsteroide[0] = res.getDrawable(R.drawable.asteroide1);
+		drawableAsteroide[1] = res.getDrawable(R.drawable.asteroide2);
+		drawableAsteroide[2] = res.getDrawable(R.drawable.asteroide3);
+
+		res.getDrawable(R.drawable.asteroide1);
 		for (int i = 0; i < numAsteroides; i++) {
-			Grafico asteroide = new Grafico(this, asteroide1);
+			Grafico asteroide = new Grafico(this, drawableAsteroide[0]);
 
 			asteroide.setIncX(Math.random() * 4 - 2); // rango de -2 a 2 //
 														// (velocidad)
 			asteroide.setIncY(Math.random() * 4 - 2);
 			asteroide.setAngulo((int) (Math.random() * 360));
-			asteroide.setRotación((int) (Math.random() * 8 - 4));
+			asteroide.setRotacion((int) (Math.random() * 8 - 4));
 			asteroides.add(asteroide);
 		}
 		nave = new Grafico(this, res.getDrawable(R.drawable.nave));
@@ -96,9 +117,11 @@ public class VistaJuego extends View implements SensorEventListener {
 		regSensorOrientacion();
 
 		// Iniciamos el SoundPool y los disparos
-		soundPool = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
-		idDisparo = soundPool.load(context, R.raw.disparo, 0);
-		idExplosion = soundPool.load(context, R.raw.explosion, 0);
+		if (musica) {
+			soundPool = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
+			idDisparo = soundPool.load(context, R.raw.disparo, 0);
+			idExplosion = soundPool.load(context, R.raw.explosion, 0);
+		}
 
 	}
 
@@ -218,11 +241,13 @@ public class VistaJuego extends View implements SensorEventListener {
 			nave.setIncX(nIncX);
 			nave.setIncY(nIncY);
 		}
-		// Incrementamos la posición de la nave y de los asteroides
+		// Incrementamos la posición de la nave y de los asteroides y
+		// verificamos colisiones
 		nave.incrementaPos(retardo);
-
 		for (Grafico asteroide : asteroides) {
 			asteroide.incrementaPos(retardo);
+			if (nave.verificarColision(asteroide))
+				salir();
 		}
 
 		// Actualizamos posición del misil //////
@@ -246,9 +271,40 @@ public class VistaJuego extends View implements SensorEventListener {
 	}
 
 	private void destruyeAsteroide(int i, Misil misil) {
-		asteroides.remove(i);
+		if (asteroides.get(i).getDrawable() == drawableAsteroide[2])
+			asteroides.remove(i);
+
+		int tam;
+		if (asteroides.get(i).getDrawable() != drawableAsteroide[2]) {
+
+			if (asteroides.get(i).getDrawable() == drawableAsteroide[1]) {
+				tam = 2;
+			} else {
+				tam = 1;
+			}
+
+			for (int n = 0; n < numFragmentos; n++) {
+				Grafico asteroide = new Grafico(this, drawableAsteroide[tam]);
+				asteroide.setPosX(asteroides.get(i).getPosX());
+				asteroide.setPosY(asteroides.get(i).getPosY());
+				asteroide.setIncX(Math.random() * 7 - 2 - tam);
+				asteroide.setIncY(Math.random() * 7 - 2 - tam);
+				asteroide.setAngulo((int) (Math.random() * 360));
+				asteroide.setRotacion((Math.random() * 8 - 4));
+				asteroides.add(asteroide);
+			}
+
+			if (asteroides.isEmpty())
+				salir();
+
+		}
+
+		// Desactivamos el misil para que el método onDraw deje de dibujarlo
 		misil.setMisilActivo(false);
-		soundPool.play(idExplosion, 1, 1, 0, 0, 1);
+		if (soundPool != null)
+			soundPool.play(idExplosion, 1, 1, 0, 0, 1);
+
+		puntuacion += 1000;
 
 	}
 
@@ -278,8 +334,18 @@ public class VistaJuego extends View implements SensorEventListener {
 				- Misil.TIEMPO_VIDA);
 
 		misil.setMisilActivo(true);
-		soundPool.play(idDisparo, 1, 1, 1, 0, 1);
+		if (soundPool != null)
+			soundPool.play(idDisparo, 1, 1, 1, 0, 1);
 
+	}
+
+	private void salir() {
+		Bundle bundle = new Bundle();
+		bundle.putInt("puntuacion", puntuacion);
+		Intent returnIntent = new Intent();
+		returnIntent.putExtras(bundle);
+		padre.setResult(Activity.RESULT_OK, returnIntent);
+		padre.finish();
 	}
 
 	class ThreadJuego extends Thread {
@@ -367,8 +433,8 @@ public class VistaJuego extends View implements SensorEventListener {
 		return hilo;
 	}
 
-	public SensorManager getSm() {
-		return sm;
+	public void setPadre(Activity padre) {
+		this.padre = padre;
 	}
-
+	
 }

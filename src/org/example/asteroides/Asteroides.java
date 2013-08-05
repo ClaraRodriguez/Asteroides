@@ -33,8 +33,10 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 	private Button btnJuego;
 	private TextView titulo;
 	private GestureLibrary libreria;
-	public static AlmacenPuntuacionesArray almacen = new AlmacenPuntuacionesArray();
+	//public static AlmacenPuntuacionesArray almacen = new AlmacenPuntuacionesArray();
 	private MediaPlayer mp;
+	public static final int ACTIVIDAD_JUEGO = 1;
+	private AlmacenPuntuacionesPreferencias almacen;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +54,8 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 		Animation animacion = AnimationUtils.loadAnimation(this,
 				R.anim.animacion);
 		titulo.startAnimation(animacion);
+		// Preferencias
+		almacen = new AlmacenPuntuacionesPreferencias(this);
 
 		// Reproductor de música ////////
 		mp = MediaPlayer.create(this, R.raw.menu_theme);
@@ -161,7 +165,7 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 
 	public void lanzarJuego(View view) {
 		Intent i = new Intent(this, Juego.class);
-		startActivity(i);
+		startActivityForResult(i, ACTIVIDAD_JUEGO);
 
 	}
 
@@ -233,5 +237,20 @@ public class Asteroides extends Activity implements OnGesturePerformedListener {
 			mp.seekTo(pos);
 		}
 	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		
+		if(requestCode == ACTIVIDAD_JUEGO & resultCode == RESULT_OK & data != null){
+			int puntuacion = data.getExtras().getInt("puntuacion");
+			String nombre = "Yo";
+			almacen.guardarPuntuacion(puntuacion, nombre, System.currentTimeMillis());
+			lanzarPuntuaciones(null);
+			
+		}
+	}
+	
+	
 
 }
